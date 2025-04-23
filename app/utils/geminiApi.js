@@ -20,16 +20,20 @@ export const generateGeminiResponse = async (prompt, apiKey, context = []) => {
     
     const url = `${GEMINI_API_URL}?key=${apiKey}`;
     
-    // Format the content for the Gemini API according to their specifications
-    // This structure follows the format required by the Gemini 2.0 Flash API
+    // Build the full conversation history, including the new prompt
+    const conversationHistory = [
+      ...context.map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.text }]
+      })),
+      {
+        role: 'user',
+        parts: [{ text: prompt }]
+      }
+    ];
+
     const requestBody = {
-      contents: [
-        {
-          parts: [
-            { text: prompt }
-          ]
-        }
-      ],
+      contents: conversationHistory,
       generationConfig: {
         temperature: 0.7,
         topK: 40,

@@ -16,6 +16,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import GeminiAPI from '../../utils/geminiApi';
 import Constants from 'expo-constants';
+import Markdown from 'react-native-markdown-display';
 
 // Mock subject-specific context data
 const SUBJECT_CONTEXT = {
@@ -102,6 +103,14 @@ export default function AIChatScreen() {
     sendInitialContextToAI();
   }, [formNumber, subjectId, subjectTitle]);
 
+  // Clear chat history when leaving the chat screen
+  useEffect(() => {
+    return () => {
+      setMessages([]);
+      setChatHistory([]);
+    };
+  }, []);
+
   // Scroll to bottom when messages change
   useEffect(() => {
     if (messages.length > 0 && flatListRef.current) {
@@ -152,7 +161,7 @@ export default function AIChatScreen() {
       const aiResponse = await GeminiAPI.generateGeminiResponse(
         inputText.trim(),
         GEMINI_API_KEY,
-        chatHistory.slice(-5) // Use the last 5 messages for context
+        chatHistory // send the full session history for context
       );
       
       // Add AI response to the chat
@@ -202,12 +211,15 @@ export default function AIChatScreen() {
       styles.messageBubble,
       item.sender === 'user' ? styles.userMessage : styles.aiMessage
     ]}>
-      <Text style={[
-        styles.messageText,
-        item.sender === 'user' ? styles.userMessageText : styles.aiMessageText
-      ]}>
-        {item.text}
-      </Text>
+      {item.sender === 'ai' ? (
+        <Markdown style={{ body: [styles.messageText, styles.aiMessageText] }}>
+          {item.text}
+        </Markdown>
+      ) : (
+        <Text style={[styles.messageText, styles.userMessageText]}>
+          {item.text}
+        </Text>
+      )}
       <Text style={[
         styles.timestamp,
         item.sender === 'user' ? styles.userTimestamp : styles.aiTimestamp
