@@ -61,6 +61,17 @@ export default function HomeScreen() {
             </Text>
           </TouchableOpacity>
 
+            <TouchableOpacity
+            style={styles.card}
+            onPress={() => router.push("/notes")}
+            >
+            <Ionicons name="document-text-outline" size={32} color="#8c52ff" />
+            <Text style={styles.cardTitle}>Smart Notes</Text>
+            <Text style={styles.cardDescription}>
+              Create study notes and share them with friends via QR code
+            </Text>
+            </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.card}
             onPress={() => router.push("/todo")}
@@ -106,14 +117,6 @@ export default function HomeScreen() {
             <Text style={styles.cardTitle}>Flashcards</Text>
             <Text style={styles.cardDescription}>
               Study and memorize concepts with interactive flashcards
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.card}>
-            <Ionicons name="document-text-outline" size={32} color="#3a86ff" />
-            <Text style={styles.cardTitle}>Notes</Text>
-            <Text style={styles.cardDescription}>
-              Organize your notes by subject and topic
             </Text>
           </TouchableOpacity>
         </View>
