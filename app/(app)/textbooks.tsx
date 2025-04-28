@@ -46,7 +46,7 @@ export default function TextbooksScreen() {
       <View style={styles.content}>
         <View style={styles.bannerContainer}>
           <Image 
-            source={require('../../assets/images/splash-icon.png')} 
+            source={require('../../assets/icon.png')} 
             style={styles.bannerImage}
             resizeMode="contain"
           />
