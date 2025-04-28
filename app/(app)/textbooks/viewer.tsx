@@ -1,13 +1,27 @@
 import React, { useState } from 'react';
-import { Text, View, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions } from 'react-native';
+import { Text, View, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { WebView } from 'react-native-webview';
 
 // Get screen dimensions for textbook page layout
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const pageWidth = width - 40; // Accounting for padding
 
-// Mock data for textbook pages
+// Define the subject type for type safety
+type SubjectId = 'science' | 'mathematics' | 'english' | 'bahasa-melayu' | 'sejarah';
+
+// Map of PDF URLs for each subject
+const PDF_URLS: Record<SubjectId, string | undefined> = {
+  'science': 'https://res.cloudinary.com/dftpdqp65/image/upload/v1745810589/PagesfromSnKSSMT5_6267031826657706537_czji3g.pdf',
+  'mathematics': undefined,
+  'english': undefined,
+  'bahasa-melayu': undefined,
+  'sejarah': undefined
+  // Add more PDFs as you get them
+};
+
+// Mock data for textbook pages (fallback)
 const MOCK_PAGES = {
     'bahasa-melayu': [
         { content: 'Bab 1: Pengenalan kepada Bahasa Melayu', isTitle: true },
@@ -68,27 +82,33 @@ export default function TextbookViewerScreen() {
   const { form, subject, title } = useLocalSearchParams();
   
   const [currentPage, setCurrentPage] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [pdfError, setPdfError] = useState(false);
   
   const formNumber = typeof form === 'string' ? form : '1';
-  const subjectId = typeof subject === 'string' ? subject : 'bahasa-melayu';
+  const subjectId = typeof subject === 'string' ? subject as SubjectId : 'bahasa-melayu';
   const subjectTitle = typeof title === 'string' ? title : 'Bahasa Melayu';
   
-  // Get pages for the selected subject (or default if not found)
+  const pdfUrl = PDF_URLS[subjectId];
   const pages = MOCK_PAGES[subjectId] || MOCK_PAGES['bahasa-melayu'];
   const totalPages = pages.length;
   
-  // Navigate to next page
   const goToNextPage = () => {
     if (currentPage < totalPages - 1) {
       setCurrentPage(currentPage + 1);
     }
   };
   
-  // Navigate to previous page
   const goToPrevPage = () => {
     if (currentPage > 0) {
       setCurrentPage(currentPage - 1);
     }
+  };
+
+  // Handle WebView errors
+  const handleWebViewError = () => {
+    setPdfError(true);
+    setLoading(false);
   };
 
   return (
@@ -104,70 +124,96 @@ export default function TextbookViewerScreen() {
       </View>
 
       <View style={styles.content}>
-        <View style={styles.pageContainer}>
-          <View style={styles.bookmarkContainer}>
-            <TouchableOpacity style={styles.bookmarkButton}>
-              <Ionicons name="bookmark-outline" size={24} color="#3a86ff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.shareButton}>
-              <Ionicons name="share-outline" size={24} color="#3a86ff" />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView style={styles.pageContent} showsVerticalScrollIndicator={false}>
-            {pages[currentPage].isTitle ? (
-              <Text style={styles.pageTitle}>{pages[currentPage].content}</Text>
-            ) : pages[currentPage].isSubtitle ? (
-              <Text style={styles.pageSubtitle}>{pages[currentPage].content}</Text>
-            ) : (
-              <Text style={styles.pageText}>{pages[currentPage].content}</Text>
+        {pdfUrl && !pdfError ? (
+          <View style={styles.pdfContainer}>
+            {loading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#3a86ff" />
+                <Text style={styles.loadingText}>Loading PDF...</Text>
+              </View>
             )}
+            <WebView 
+              source={{ uri: `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdfUrl)}` }} 
+              style={[styles.pdfWebView, loading ? { height: 0 } : null]}
+              onLoadEnd={() => setLoading(false)}
+              onError={handleWebViewError}
+              startInLoadingState={true}
+              renderLoading={() => <ActivityIndicator size="large" color="#3a86ff" />}
+            />
+          </View>
+        ) : (
+          <View style={styles.pageContainer}>
+            <View style={styles.bookmarkContainer}>
+              <TouchableOpacity style={styles.bookmarkButton}>
+                <Ionicons name="bookmark-outline" size={24} color="#3a86ff" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.shareButton}>
+                <Ionicons name="share-outline" size={24} color="#3a86ff" />
+              </TouchableOpacity>
+            </View>
             
-            {/* Add sample diagram for science subject */}
-            {subjectId === 'science' && currentPage === 3 && (
-              <View style={styles.diagramContainer}>
-                <Image 
-                  source={require('../../../assets/images/splash-icon.png')} 
-                  style={styles.diagramImage}
-                  resizeMode="contain"
-                />
-                <Text style={styles.diagramCaption}>Fig 1.1: The Scientific Method Process</Text>
+            {pdfError && pdfUrl && (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle-outline" size={32} color="#ff3a5e" />
+                <Text style={styles.errorText}>
+                  There was an error loading the PDF. Using simplified text view instead.
+                </Text>
               </View>
             )}
             
-            {/* Add sample formula for mathematics subject */}
-            {subjectId === 'mathematics' && currentPage === 3 && (
-              <View style={styles.formulaContainer}>
-                <Text style={styles.formulaText}>E = mc²</Text>
-                <Text style={styles.formulaCaption}>Einstein's famous equation relating energy and mass</Text>
-              </View>
-            )}
-          </ScrollView>
-          
-          <View style={styles.navigationContainer}>
-            <TouchableOpacity 
-              style={[styles.navButton, currentPage === 0 && styles.disabledButton]} 
-              onPress={goToPrevPage}
-              disabled={currentPage === 0}
-            >
-              <Ionicons name="arrow-back-circle" size={28} color={currentPage === 0 ? "#ccc" : "#3a86ff"} />
-              <Text style={[styles.navButtonText, currentPage === 0 && styles.disabledButtonText]}>Previous</Text>
-            </TouchableOpacity>
+            <ScrollView style={styles.pageContent} showsVerticalScrollIndicator={false}>
+              {pages[currentPage].isTitle ? (
+                <Text style={styles.pageTitle}>{pages[currentPage].content}</Text>
+              ) : pages[currentPage].isSubtitle ? (
+                <Text style={styles.pageSubtitle}>{pages[currentPage].content}</Text>
+              ) : (
+                <Text style={styles.pageText}>{pages[currentPage].content}</Text>
+              )}
+              
+              {subjectId === 'science' && currentPage === 3 && (
+                <View style={styles.diagramContainer}>
+                  <Image 
+                    source={require('../../../assets/images/splash-icon.png')} 
+                    style={styles.diagramImage}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.diagramCaption}>Fig 1.1: The Scientific Method Process</Text>
+                </View>
+              )}
+              
+              {subjectId === 'mathematics' && currentPage === 3 && (
+                <View style={styles.formulaContainer}>
+                  <Text style={styles.formulaText}>E = mc²</Text>
+                  <Text style={styles.formulaCaption}>Einstein's famous equation relating energy and mass</Text>
+                </View>
+              )}
+            </ScrollView>
             
-            <Text style={styles.pageNumber}>
-              Page {currentPage + 1} of {totalPages}
-            </Text>
-            
-            <TouchableOpacity 
-              style={[styles.navButton, currentPage === totalPages - 1 && styles.disabledButton]} 
-              onPress={goToNextPage}
-              disabled={currentPage === totalPages - 1}
-            >
-              <Text style={[styles.navButtonText, currentPage === totalPages - 1 && styles.disabledButtonText]}>Next</Text>
-              <Ionicons name="arrow-forward-circle" size={28} color={currentPage === totalPages - 1 ? "#ccc" : "#3a86ff"} />
-            </TouchableOpacity>
+            <View style={styles.navigationContainer}>
+              <TouchableOpacity 
+                style={[styles.navButton, currentPage === 0 && styles.disabledButton]} 
+                onPress={goToPrevPage}
+                disabled={currentPage === 0}
+              >
+                <Ionicons name="arrow-back-circle" size={28} color={currentPage === 0 ? "#ccc" : "#3a86ff"} />
+                <Text style={[styles.navButtonText, currentPage === 0 && styles.disabledButtonText]}>Previous</Text>
+              </TouchableOpacity>
+              
+              <Text style={styles.pageNumber}>
+                Page {currentPage + 1} of {totalPages}
+              </Text>
+              
+              <TouchableOpacity 
+                style={[styles.navButton, currentPage === totalPages - 1 && styles.disabledButton]} 
+                onPress={goToNextPage}
+                disabled={currentPage === totalPages - 1}
+              >
+                <Text style={[styles.navButtonText, currentPage === totalPages - 1 && styles.disabledButtonText]}>Next</Text>
+                <Ionicons name="arrow-forward-circle" size={28} color={currentPage === totalPages - 1 ? "#ccc" : "#3a86ff"} />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        )}
       </View>
     </View>
   );
@@ -208,6 +254,52 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 20,
+  },
+  pdfContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  pdfWebView: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  loadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    zIndex: 1,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#3a86ff',
+  },
+  errorContainer: {
+    padding: 15,
+    backgroundColor: '#fff5f7',
+    borderRadius: 8,
+    marginBottom: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#ff3a5e',
+    fontSize: 14,
+    marginLeft: 10,
+    flex: 1,
   },
   pageContainer: {
     flex: 1,
