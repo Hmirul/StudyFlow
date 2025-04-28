@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
@@ -16,8 +16,10 @@ export default function ViewNoteScreen() {
   const { id } = useLocalSearchParams();
   const [note, setNote] = useState<Note | null>(null);
   const [showQR, setShowQR] = useState(false);
+  const [qrError, setQrError] = useState(false);
   const [loading, setLoading] = useState(true);
   const { fetchWithAuth } = useAuth();
+  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     const fetchNote = async () => {
@@ -57,6 +59,18 @@ export default function ViewNoteScreen() {
         }
       }
     ]);
+  };
+
+  const toggleQRCode = () => {
+    setQrError(false);
+    setShowQR(!showQR);
+
+    // Scroll to bottom when QR is shown to make it visible
+    if (!showQR) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
   };
 
   if (loading) {
@@ -110,7 +124,11 @@ export default function ViewNoteScreen() {
         </TouchableOpacity>
       </View>
       
-      <ScrollView style={styles.contentContainer}>
+      <ScrollView 
+        ref={scrollViewRef}
+        style={styles.contentContainer}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
         <View style={styles.noteCard}>
           <Text style={styles.noteTitle}>{note.title}</Text>
           <Text style={styles.noteContent}>{note.content}</Text>
@@ -118,7 +136,21 @@ export default function ViewNoteScreen() {
         
         {showQR && (
           <View style={styles.qrContainer}>
-            <QRCode value={JSON.stringify({ title: note.title, content: note.content })} size={200} />
+            {qrError ? (
+              <View style={styles.qrErrorContainer}>
+                <Ionicons name="warning-outline" size={48} color="#ff9800" />
+                <Text style={styles.qrErrorText}>Could not generate QR code</Text>
+              </View>
+            ) : (
+              <View style={styles.qrWrapper}>
+                <QRCode 
+                  value={JSON.stringify({ title: note.title, content: note.content })} 
+                  size={200}
+                  onError={() => setQrError(true)}
+                  logoBackgroundColor="white"
+                />
+              </View>
+            )}
             <Text style={styles.qrHint}>Show this QR code to share your note</Text>
           </View>
         )}
@@ -134,9 +166,9 @@ export default function ViewNoteScreen() {
         
         <TouchableOpacity 
           style={styles.shareButton} 
-          onPress={() => setShowQR(!showQR)}
+          onPress={toggleQRCode}
         >
-          <Ionicons name="share-social-outline" size={24} color="white" />
+          <Ionicons name={showQR ? "close-outline" : "share-social-outline"} size={24} color="white" />
         </TouchableOpacity>
       </View>
     </View>
@@ -239,6 +271,33 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
+  },
+  qrWrapper: {
+    padding: 10,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    ...Platform.select({
+      android: {
+        elevation: 4,
+      },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      }
+    }),
+  },
+  qrErrorContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 200,
+    width: 200,
+  },
+  qrErrorText: {
+    color: '#666',
+    marginTop: 12,
+    textAlign: 'center',
   },
   qrHint: { 
     marginTop: 16, 
